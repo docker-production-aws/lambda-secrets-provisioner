@@ -78,5 +78,12 @@ def handle_create(event, context):
 @handler.delete
 def handle_delete(event, context):
   log.info("Received delete event: %s" % format_json(event))
+  secret = validate(event['ResourceProperties'])
+  # Delete parameter if it exists and is tagged with an Id that matches the physical resource Id
+  if (not [invalid for invalid in ssm.get_parameters(Names=[secret['Name']])['InvalidParameters']] and
+      next((
+        tag for tag in ssm.list_tags_for_resource(ResourceType='Parameter',ResourceId=secret['Name'])['TagList']
+        if tag.get('Key') == 'Id' and tag.get('Value') == event['PhysicalResourceId']
+    ), None)):
+    ssm.delete_parameter(Name=secret['Name'])
   return event
-
