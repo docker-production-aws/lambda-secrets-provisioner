@@ -6,6 +6,7 @@ sys.path.append(vendor_dir)
 import logging, datetime, json
 import boto3
 from cfn_lambda_handler import Handler
+from voluptuous import Required, All, Schema, Invalid, MultipleInvalid
 
 # Configure logging
 logging.basicConfig()
@@ -21,10 +22,24 @@ handler = Handler()
 kms = boto3.client('kms')
 ssm = boto3.client('ssm')
 
+# Validate input
+def get_validator():
+  return Schema({
+    Required('Name'): All(basestring),
+    Required('Key'): All(basestring),
+    Required('Value', default=None): All(basestring),
+    Required('KmsKeyId'): All(basestring)
+  }, extra=True)
+
+def validate(data):
+  request_validator = get_validator()
+  return request_validator(data)
+
 # Create requests
 @handler.create
 def handle_create(event, context):
   log.info("Received create event: %s" % format_json(event))
+  secret = validate(event['ResourceProperties'])
   return event
 
 # Update requests
