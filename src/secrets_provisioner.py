@@ -42,10 +42,11 @@ def generate_password(length, chars):
   rnd = random.SystemRandom()
   return ''.join(rnd.choice(chars) for i in range(length))
 
-# Create requests
+# Create/update requests
 @handler.create
+@handler.update
 def handle_create(event, context):
-  log.info("Received create event: %s" % format_json(event))
+  log.info("Received event: %s" % format_json(event))
   secret = validate(event['ResourceProperties'])
   # Create UUID for secret
   secret['Id'] = str(uuid.uuid4())
@@ -71,12 +72,6 @@ def handle_create(event, context):
   )
   event['PhysicalResourceId'] = secret['Id']
   event['Data'] = {'Value': secret['Value']}
-  return event
-
-# Update requests
-@handler.update
-def handle_update(event, context):
-  log.info("Received update event: %s" % format_json(event))
   return event
 
 # Delete requests
