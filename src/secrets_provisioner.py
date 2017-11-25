@@ -16,7 +16,7 @@ def format_json(data):
   return json.dumps(data, default=lambda d: d.isoformat() if isinstance(d, datetime.datetime) else str(d))
 
 # Lambda handler 
-handler = Handler()
+handler = Handler(secure_attributes=['Value'])
 
 # Boto3 clients
 kms = boto3.client('kms')
@@ -55,6 +55,22 @@ def handle_create(event, context):
   else:
     # Decrypt supplied secret value
     secret['Value'] = kms.decrypt(CiphertextBlob=base64.b64decode(secret['Value'])).get('Plaintext')
+  # Provision secret in the form KEY=VALUE - e.g. DB_PASSWORD=abc123
+  ssm.put_parameter(
+    Name=secret['Name'],
+    Type='SecureString',
+    KeyId=secret['KmsKeyId'],
+    Value='%s=%s' % (secret['Key'],secret['Value']),
+    Overwrite=True
+  )
+  # Tag the parameter with the UUID
+  ssm.add_tags_to_resource(
+    ResourceType='Parameter',
+    ResourceId=secret['Name'],
+    Tags=[{'Key': 'Id', 'Value': secret['Id']}]
+  )
+  event['PhysicalResourceId'] = secret['Id']
+  event['Data'] = {'Value': secret['Value']}
   return event
 
 # Update requests
